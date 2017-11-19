@@ -1,0 +1,448 @@
+<!doctype html>
+<!--
+  Material Design Lite
+  Copyright 2015 Google Inc. All rights reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="A front-end template that helps you build fast, modern mobile web apps.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <title>Material Design Lite</title>
+
+    <!-- Add to homescreen for Chrome on Android -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="icon" sizes="192x192" href="images/android-desktop.png">
+
+    <!-- Add to homescreen for Safari on iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Material Design Lite">
+    <link rel="apple-touch-icon-precomposed" href="images/ios-desktop.png">
+
+    <!-- Tile icon for Win8 (144x144 + tile color) -->
+    <meta name="msapplication-TileImage" content="images/touch/ms-touch-icon-144x144-precomposed.png">
+    <meta name="msapplication-TileColor" content="#3372DF">
+
+    <link rel="shortcut icon" href="images/favicon.png">
+
+    <!-- SEO: If your mobile URL is different from the desktop URL, add a canonical link to the desktop page https://developers.google.com/webmasters/smartphone-sites/feature-phones -->
+    <!--
+    <link rel="canonical" href="http://www.example.com/">
+    -->
+    <script type="text/javascript" src="http://gc.kis.v2.scr.kaspersky-labs.com/08867190-5637-0542-8A18-46677E80E6B0/main.js" charset="UTF-8"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.blue-pink.min.css" />
+    <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="./css/weather-icons.min.css">
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/series-label.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <style>
+      #view-source {
+        position: fixed;
+        display: block;
+        right: 0;
+        bottom: 0;
+        margin-right: 40px;
+        margin-bottom: 40px;
+        z-index: 900;
+      }
+      #chart1_container {
+        margin: 0 auto
+      }
+    </style>
+    <script type="text/javascript">
+    // when the document is ready
+
+      $(document).on('ready', function() {
+        $.getJSON('https://api.thingspeak.com/channels/364644/feeds.json?results=2000&&api_key=CXX5JRMQ85U7KM0I', function(data) {
+
+        // blank array for holding chart data
+          var outdoor_temperature_chart_data = [];
+          var outdoor_pm2p5_chart_data = [];
+          var outdoor_pm10_chart_data = [];
+          var outdoor_pressure_chart_data = [];
+          var outdoor_ambient_light_level_chart_data = []
+
+          var indoor_temperature_chart_data = [];
+          var indoor_pm2p5_chart_data = [];
+          var indoor_pm10_chart_data = [];
+
+          // iterate through each feed
+          $.each(data.feeds, function() {
+            var point = new Highcharts.Point();
+            // set the proper values
+
+            var created_at = new Date(this.created_at).getTime();
+            var outdoor_temperature = parseFloat(this["field1"]);
+            var outdoor_ambient_light_level = parseFloat(this["field3"]);
+            var outdoor_pm2p5 = 100*parseFloat(this["field4"]) / 25.0; //the norm is 25 ug/m^3
+            var outdoor_pm10 = 100*parseFloat(this["field5"]) / 50.0; //the norm is 50 ug/m^3
+            
+
+            //based on http://synoptyka.blog.onet.pl/2013/02/18/redukcja-cisnienia/
+
+            var outdoor_pressure_absolute = parseFloat(this["field8"]) / 100;
+            var h = 230;
+            var r = 287.058;
+            var g = 9.81;
+            var t_avg = 273.15 + outdoor_temperature + 0.003*h;
+            var outdoor_pressure = outdoor_pressure_absolute*Math.pow(2.7182, (g*h)/(r*t_avg));
+
+            var indoor_temperature = parseFloat(this["field2"]);
+            var indoor_pm2p5 = 100*parseFloat(this["field6"]) / 25.0; //the norm is 25 ug/m^3;
+            var indoor_pm10 = 100*parseFloat(this["field7"]) / 50; //the norm is 50 ug/m^3
+
+
+            outdoor_temperature_chart_data.push([created_at, outdoor_temperature])
+            outdoor_pressure_chart_data.push([created_at, outdoor_pressure])
+            outdoor_ambient_light_level_chart_data.push([created_at, outdoor_ambient_light_level]);
+            outdoor_pm2p5_chart_data.push([created_at, outdoor_pm2p5]);
+            outdoor_pm10_chart_data.push([created_at, outdoor_pm10]);
+
+            indoor_temperature_chart_data.push([created_at, indoor_temperature])
+            indoor_pm2p5_chart_data.push([created_at, indoor_pm2p5]);
+            indoor_pm10_chart_data.push([created_at, indoor_pm10]);
+
+          });
+
+          Highcharts.chart('chart1_container', {
+            chart: {
+                zoomType: 'x'
+            },
+            title: {
+                text: 'Temperatura, ciśnienie i natężenie światła w ostatnich dniach'
+            },
+
+            xAxis: {
+                type: 'datetime'
+            },
+            yAxis: [{ 
+                labels: {
+                    format: '{value}°C',
+                },
+                title: {
+                    text: 'Temperatura',
+                }
+              }, { 
+                title: {
+                    text: 'Ciśnienie',
+                },
+                labels: {
+                    format: '{value} hPa',
+                },
+                opposite: true
+
+              }, { 
+                title: {
+                    text: 'Natężenie światła',
+                },
+                labels: {
+                    format: '{value} lx',
+                },
+                opposite: true
+            }],
+
+            legend: {
+                enabled: true
+            },
+
+            plotOptions: {
+                line: {
+                    marker: {
+                        radius: 2
+                    },
+                    lineWidth: 2,
+                    states: {
+                        hover: {
+                            lineWidth: 1
+                        }
+                    },
+                    threshold: null
+                }
+            },
+
+            series: [
+                {
+                  type: 'line',
+                  name: 'Temp. na zewnątrz',
+                  data: outdoor_temperature_chart_data,
+                  yAxis: 0,
+                },
+                {
+                  type: 'line',
+                  name: 'Temp. w domu',
+                  data: indoor_temperature_chart_data,
+                  yAxis: 0,
+                },
+                {
+                  type: 'line',
+                  name: 'Ciśnienie',
+                  data: outdoor_pressure_chart_data,
+                  yAxis: 1,
+                },
+                {
+                  type: 'line',
+                  name: 'Natężenie światła',
+                  data: outdoor_ambient_light_level_chart_data,
+                  yAxis: 2,
+                }
+                ]
+          });
+
+          Highcharts.chart('chart2_container', {
+            chart: {
+                zoomType: 'x'
+            },
+            title: {
+                text: 'Poziom pyłów PM2.5 i PM10 w ostatnich dniach'
+            },
+
+            xAxis: {
+                type: 'datetime'
+            },
+            yAxis: [{ // Primary yAxis
+                labels: {
+                    format: '{value}%',
+                },
+                title: {
+                    text: 'Procent normy',
+                }
+              }],
+
+            legend: {
+                enabled: true
+            },
+
+            plotOptions: {
+                line: {
+                    marker: {
+                        radius: 2
+                    },
+                    lineWidth: 2,
+                    states: {
+                        hover: {
+                            lineWidth: 1
+                        }
+                    },
+                    threshold: null
+                }
+            },
+
+            series: [
+                {
+                  type: 'line',
+                  name: 'PM2.5 na zewntąrz',
+                  data: outdoor_pm2p5_chart_data,
+                  yAxis: 0,
+                },
+                {
+                  type: 'line',
+                  name: 'PM10 na zewntąrz',
+                  data: outdoor_pm10_chart_data,
+                  yAxis: 0,
+                },
+                {
+                  type: 'line',
+                  name: 'PM2.5 w domu',
+                  data: indoor_pm2p5_chart_data,
+                  yAxis: 0,
+                },
+                {
+                  type: 'line',
+                  name: 'PM10 w domu',
+                  data: indoor_pm10_chart_data,
+                  yAxis: 0,
+                }
+                ]
+          });
+
+        last_outdoor_temperature = outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][1];
+        last_outdoor_pressure = outdoor_pressure_chart_data[outdoor_pressure_chart_data.length - 1][1];
+        last_outdoor_ambient_light_level = outdoor_ambient_light_level_chart_data[outdoor_ambient_light_level_chart_data.length - 1][1];
+        last_outdoor_pm2p5 = outdoor_pm2p5_chart_data[outdoor_pm2p5_chart_data.length - 1][1];
+        last_outdoor_pm10 = outdoor_pm10_chart_data[outdoor_pm10_chart_data.length - 1][1];
+
+        last_indoor_temperature = indoor_temperature_chart_data[indoor_temperature_chart_data.length - 1][1];
+        last_indoor_pm2p5 = indoor_pm2p5_chart_data[indoor_pm2p5_chart_data.length - 1][1];
+        last_indoor_pm10 = indoor_pm10_chart_data[indoor_pm10_chart_data.length - 1][1];
+
+        last_created_at_date  = new Date(outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][0]);
+
+        update_str = last_created_at_date.getHours() + ":" + last_created_at_date.getMinutes();
+
+        document.getElementById("cell-outdoor-temperature").innerHTML  = last_outdoor_temperature.toFixed(1);
+        document.getElementById("cell-outdoor-pressure").innerHTML  = last_outdoor_pressure.toFixed(0);
+        document.getElementById("cell-outdoor-ambient-light-level").innerHTML  = last_outdoor_ambient_light_level.toFixed(1);
+        document.getElementById("cell-outdoor-pm2p5").innerHTML  = last_outdoor_pm2p5.toFixed(0);
+        document.getElementById("cell-outdoor-pm10").innerHTML  = last_outdoor_pm10.toFixed(0);
+        document.getElementById("cell-outdoor-data-time").innerHTML  = update_str;
+
+        document.getElementById("cell-indoor-temperature").innerHTML  = last_indoor_temperature.toFixed(1);
+        document.getElementById("cell-indoor-pm2p5").innerHTML  = last_indoor_pm2p5.toFixed(0);
+        document.getElementById("cell-indoor-pm10").innerHTML  = last_indoor_pm10.toFixed(0);
+        document.getElementById("cell-indoor-data-time").innerHTML  = update_str;
+
+        });
+      });
+
+    </script>
+  </head>
+  <body>
+    <div class="demo-layout mdl-layout mdl-js-layout mdl-layout--fixed-header">
+      <header class="demo-header mdl-layout__header mdl-color--grey-100 mdl-color-text--grey-600">
+        <div class="mdl-layout__header-row">
+          <span class="mdl-layout-title">Domowe Centrum Meteo</span>
+          <div class="mdl-layout-spacer"></div>
+        </div>
+      </header>
+
+      <main class="mdl-layout__content mdl-color--grey-100">
+        <div class="mdl-grid demo-content">
+
+          <div class="demo-cards mdl-cell mdl-cell--4-col mdl-grid">
+
+            <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--4-col-tablet mdl-cell--12-col-desktop">
+              <div class="mdl-card__title mdl-card--expand mdl-color--blue-300">
+                <h2 class="mdl-card__title-text">Na zewnątrz</h2>
+              </div>
+
+              <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-thermometer weather-info-icon-big"></i>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-outdoor-temperature">-&nbsp-&nbsp-</span>
+                    <span class="mdl-typography--display-1">&deg</span>
+
+                  </div>
+                </div>
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-barometer weather-info-icon-big"></i>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-outdoor-pressure">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsphPa</span>
+                  </div>
+                </div>
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-day-sunny weather-info-icon-big"></i>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-outdoor-ambient-light-level">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsplx</span>
+                  </div>
+                </div>
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-stars weather-info-icon-big"></i><span class="mdl-typography--body-1"><i>PM2.5</i></span>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-outdoor-pm2p5">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
+                  </div>
+                </div>
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-stars weather-info-icon-big"></i><span class="mdl-typography--body-1"><i>PM10</i></span>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-outdoor-pm10">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
+                  </div>
+                </div>
+
+              </div>
+              <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+                <span class="mdl-typography--regular">Dane z godziny&nbsp</span><span class="mdl-typography--regular" id="cell-outdoor-data-time">...</span>
+              </div>
+            </div>
+
+            <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--4-col-tablet mdl-cell--12-col-desktop">
+              <div class="mdl-card__title mdl-card--expand mdl-color--blue-300">
+                <h2 class="mdl-card__title-text">W domu</h2>
+              </div>
+
+              <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-thermometer weather-info-icon-big"></i>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-indoor-temperature">-&nbsp-&nbsp-</span>
+                    <span class="mdl-typography--display-1">&deg</span>
+                  </div>
+                </div>
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-stars weather-info-icon-big"></i><span class="mdl-typography--body-1"><i>PM2.5</i></span>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-indoor-pm2p5">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
+                  </div>
+                </div>
+
+                <div class="mdl-grid">
+                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <i class="wi wi-stars weather-info-icon-big"></i><span class="mdl-typography--body-1"><i>PM10</i></span>
+                  </div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
+                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
+                    <span class="mdl-typography--display-1" id="cell-indoor-pm10">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
+                  </div>
+                </div>
+
+              </div>
+              <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+                <span class="mdl-typography--regular">Dane z godziny&nbsp</span><span class="mdl-typography--regular" id="cell-indoor-data-time">...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo-cards mdl-cell mdl-cell--8-col mdl-grid">
+
+            <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--4-col-tablet mdl-cell--12-col-desktop">
+              <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+                <div id="chart1_container"></div>
+              </div>
+            </div>
+
+            <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--4-col-tablet mdl-cell--12-col-desktop">
+              <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+                <div id="chart2_container"></div>
+              </div>
+            </div>
+
+          </div>
+        </main>
+  </body>
+</html>
