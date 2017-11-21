@@ -88,7 +88,7 @@
             var point = new Highcharts.Point();
             // set the proper values
 
-            var created_at = new Date(this.created_at).getTime();
+            var created_at = new Date(this.created_at).getTime() - (new Date()).getTimezoneOffset()*60*1000;
             var outdoor_temperature = parseFloat(this["field1"]);
             var outdoor_ambient_light_level = parseFloat(this["field3"]);
             var outdoor_pm2p5 = 100*parseFloat(this["field4"]) / 25.0; //the norm is 25 ug/m^3
@@ -176,7 +176,6 @@
                     threshold: null
                 }
             },
-
             series: [
                 {
                   type: 'line',
@@ -282,7 +281,7 @@
         last_indoor_pm2p5 = indoor_pm2p5_chart_data[indoor_pm2p5_chart_data.length - 1][1];
         last_indoor_pm10 = indoor_pm10_chart_data[indoor_pm10_chart_data.length - 1][1];
 
-        last_created_at_date  = new Date(outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][0]);
+        last_created_at_date  = new Date(outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][0] + (new Date()).getTimezoneOffset()*60*1000);
 
         update_str = last_created_at_date.getHours() + ":" + (last_created_at_date.getMinutes() < 10 ?  "0" + last_created_at_date.getMinutes() : last_created_at_date.getMinutes());
 
