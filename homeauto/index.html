@@ -62,65 +62,97 @@
         margin-bottom: 40px;
         z-index: 900;
       }
-      #chart1_container {
-        margin: 0 auto
+      .chart_container {
+        width:100%;
+        height:100%;
+      }
+      .loading_data {
+        height: 90px;
+        line-height: 90px;
+        text-align: center;
       }
     </style>
     <script type="text/javascript">
     // when the document is ready
 
-      $(document).on('ready', function() {
-        $.getJSON('https://api.thingspeak.com/channels/364644/feeds.json?results=2000&&api_key=CXX5JRMQ85U7KM0I', function(data) {
+      function getLastData(numOfPoints, updateChart){
+        $.getJSON('https://api.thingspeak.com/channels/364644/feeds.json?results=' + numOfPoints + '&api_key=CXX5JRMQ85U7KM0I', function(data) {
 
         // blank array for holding chart data
-          var outdoor_temperature_chart_data = [];
-          var outdoor_pm2p5_chart_data = [];
-          var outdoor_pm10_chart_data = [];
-          var outdoor_pressure_chart_data = [];
-          var outdoor_ambient_light_level_chart_data = []
+        var outdoor_temperature_chart_data = [];
+        var outdoor_pm2p5_chart_data = [];
+        var outdoor_pressure_chart_data = [];
+        var outdoor_ambient_light_level_chart_data = []
 
-          var indoor_temperature_chart_data = [];
-          var indoor_pm2p5_chart_data = [];
-          var indoor_pm10_chart_data = [];
+        var indoor_temperature_chart_data = [];
+        var indoor_pm2p5_chart_data = [];
 
-          // iterate through each feed
-          $.each(data.feeds, function() {
-            var point = new Highcharts.Point();
-            // set the proper values
+        // iterate through each feed
+        $.each(data.feeds, function() {
+          var point = new Highcharts.Point();
+          // set the proper values
 
-            var created_at = new Date(this.created_at).getTime() - (new Date()).getTimezoneOffset()*60*1000;
-            var outdoor_temperature = parseFloat(this["field1"]);
-            var outdoor_ambient_light_level = parseFloat(this["field3"]);
-            var outdoor_pm2p5 = 100*parseFloat(this["field4"]) / 25.0; //the norm is 25 ug/m^3
-            var outdoor_pm10 = 100*parseFloat(this["field5"]) / 50.0; //the norm is 50 ug/m^3
-            
+          var created_at = new Date(this.created_at).getTime() - (new Date()).getTimezoneOffset()*60*1000;
+          var outdoor_temperature = parseFloat(this["field1"]);
+          var outdoor_ambient_light_level = parseFloat(this["field3"]);
+          var outdoor_pm2p5 = 100*parseFloat(this["field4"]) / 25.0; //the norm is 25 ug/m^3
+          //based on http://synoptyka.blog.onet.pl/2013/02/18/redukcja-cisnienia/
 
-            //based on http://synoptyka.blog.onet.pl/2013/02/18/redukcja-cisnienia/
+          var outdoor_pressure_absolute = parseFloat(this["field8"]) / 100;
+          var h = 230;
+          var r = 287.058;
+          var g = 9.81;
+          var t_avg = 273.15 + outdoor_temperature + 0.003*h;
+          var outdoor_pressure = outdoor_pressure_absolute*Math.pow(2.7182, (g*h)/(r*t_avg));
 
-            var outdoor_pressure_absolute = parseFloat(this["field8"]) / 100;
-            var h = 230;
-            var r = 287.058;
-            var g = 9.81;
-            var t_avg = 273.15 + outdoor_temperature + 0.003*h;
-            var outdoor_pressure = outdoor_pressure_absolute*Math.pow(2.7182, (g*h)/(r*t_avg));
+          var indoor_temperature = parseFloat(this["field2"]);
+          var indoor_pm2p5 = 100*parseFloat(this["field6"]) / 25.0; //the norm is 25 ug/m^3;
 
-            var indoor_temperature = parseFloat(this["field2"]);
-            var indoor_pm2p5 = 100*parseFloat(this["field6"]) / 25.0; //the norm is 25 ug/m^3;
-            var indoor_pm10 = 100*parseFloat(this["field7"]) / 50; //the norm is 50 ug/m^3
+          outdoor_temperature_chart_data.push([created_at, outdoor_temperature])
+          outdoor_pressure_chart_data.push([created_at, outdoor_pressure])
+          outdoor_ambient_light_level_chart_data.push([created_at, outdoor_ambient_light_level]);
+          outdoor_pm2p5_chart_data.push([created_at, outdoor_pm2p5]);
+
+          indoor_temperature_chart_data.push([created_at, indoor_temperature])
+          indoor_pm2p5_chart_data.push([created_at, indoor_pm2p5]);
+        });
+
+        last_outdoor_temperature = outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][1];
+        last_outdoor_pressure = outdoor_pressure_chart_data[outdoor_pressure_chart_data.length - 1][1];
+        last_outdoor_ambient_light_level = outdoor_ambient_light_level_chart_data[outdoor_ambient_light_level_chart_data.length - 1][1];
+        last_outdoor_pm2p5 = outdoor_pm2p5_chart_data[outdoor_pm2p5_chart_data.length - 1][1];
+
+        last_indoor_temperature = indoor_temperature_chart_data[indoor_temperature_chart_data.length - 1][1];
+        last_indoor_pm2p5 = indoor_pm2p5_chart_data[indoor_pm2p5_chart_data.length - 1][1];
+
+        last_created_at_date  = new Date(outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][0] + (new Date()).getTimezoneOffset()*60*1000);
+
+        update_str = last_created_at_date.getHours() + ":" + (last_created_at_date.getMinutes() < 10 ?  "0" + last_created_at_date.getMinutes() : last_created_at_date.getMinutes());
+
+        document.getElementById("cell-outdoor-temperature").innerHTML = last_outdoor_temperature.toFixed(1);
+        document.getElementById("cell-outdoor-temperature-unit").innerHTML = "&deg";
+
+        document.getElementById("cell-outdoor-pressure").innerHTML = last_outdoor_pressure.toFixed(0);
+        document.getElementById("cell-outdoor-pressure-unit").innerHTML = "&nbsphPa"
+
+        document.getElementById("cell-outdoor-ambient-light-level").innerHTML = last_outdoor_ambient_light_level.toFixed(1);
+        document.getElementById("cell-outdoor-ambient-light-level-unit").innerHTML = "&nbsplx";
+
+        document.getElementById("cell-outdoor-pm2p5").innerHTML = last_outdoor_pm2p5.toFixed(0);
+        document.getElementById("cell-outdoor-pm2p5-unit").innerHTML = "&nbsp%"
+
+        document.getElementById("cell-outdoor-data-time").innerHTML  = update_str;
 
 
-            outdoor_temperature_chart_data.push([created_at, outdoor_temperature])
-            outdoor_pressure_chart_data.push([created_at, outdoor_pressure])
-            outdoor_ambient_light_level_chart_data.push([created_at, outdoor_ambient_light_level]);
-            outdoor_pm2p5_chart_data.push([created_at, outdoor_pm2p5]);
-            outdoor_pm10_chart_data.push([created_at, outdoor_pm10]);
+        document.getElementById("cell-indoor-temperature").innerHTML = last_indoor_temperature.toFixed(1);
+        document.getElementById("cell-indoor-temperature-unit").innerHTML = "&deg";
 
-            indoor_temperature_chart_data.push([created_at, indoor_temperature])
-            indoor_pm2p5_chart_data.push([created_at, indoor_pm2p5]);
-            indoor_pm10_chart_data.push([created_at, indoor_pm10]);
+        document.getElementById("cell-indoor-pm2p5").innerHTML = last_indoor_pm2p5.toFixed(0);
+        document.getElementById("cell-indoor-pm2p5-unit").innerHTML = "&nbsp%";
 
-          });
+        document.getElementById("cell-indoor-data-time").innerHTML  = update_str;
 
+        if(updateChart){
           Highcharts.chart('chart1_container', {
             chart: {
                 zoomType: 'x'
@@ -209,7 +241,7 @@
                 zoomType: 'x'
             },
             title: {
-                text: 'Poziom pyłów PM2.5 i PM10 w ostatnich dniach'
+                text: 'Poziom pyłów PM2.5 w ostatnich dniach'
             },
 
             xAxis: {
@@ -252,52 +284,20 @@
                 },
                 {
                   type: 'line',
-                  name: 'PM10 na zewntąrz',
-                  data: outdoor_pm10_chart_data,
-                  yAxis: 0,
-                },
-                {
-                  type: 'line',
                   name: 'PM2.5 w domu',
                   data: indoor_pm2p5_chart_data,
-                  yAxis: 0,
-                },
-                {
-                  type: 'line',
-                  name: 'PM10 w domu',
-                  data: indoor_pm10_chart_data,
                   yAxis: 0,
                 }
                 ]
           });
+        }
 
-        last_outdoor_temperature = outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][1];
-        last_outdoor_pressure = outdoor_pressure_chart_data[outdoor_pressure_chart_data.length - 1][1];
-        last_outdoor_ambient_light_level = outdoor_ambient_light_level_chart_data[outdoor_ambient_light_level_chart_data.length - 1][1];
-        last_outdoor_pm2p5 = outdoor_pm2p5_chart_data[outdoor_pm2p5_chart_data.length - 1][1];
-        last_outdoor_pm10 = outdoor_pm10_chart_data[outdoor_pm10_chart_data.length - 1][1];
+      });
+      }
 
-        last_indoor_temperature = indoor_temperature_chart_data[indoor_temperature_chart_data.length - 1][1];
-        last_indoor_pm2p5 = indoor_pm2p5_chart_data[indoor_pm2p5_chart_data.length - 1][1];
-        last_indoor_pm10 = indoor_pm10_chart_data[indoor_pm10_chart_data.length - 1][1];
-
-        last_created_at_date  = new Date(outdoor_temperature_chart_data[outdoor_temperature_chart_data.length - 1][0] + (new Date()).getTimezoneOffset()*60*1000);
-
-        update_str = last_created_at_date.getHours() + ":" + (last_created_at_date.getMinutes() < 10 ?  "0" + last_created_at_date.getMinutes() : last_created_at_date.getMinutes());
-
-        document.getElementById("cell-outdoor-temperature").innerHTML  = last_outdoor_temperature.toFixed(1);
-        document.getElementById("cell-outdoor-pressure").innerHTML  = last_outdoor_pressure.toFixed(0);
-        document.getElementById("cell-outdoor-ambient-light-level").innerHTML  = last_outdoor_ambient_light_level.toFixed(1);
-        document.getElementById("cell-outdoor-pm2p5").innerHTML  = last_outdoor_pm2p5.toFixed(0);
-        document.getElementById("cell-outdoor-pm10").innerHTML  = last_outdoor_pm10.toFixed(0);
-        document.getElementById("cell-outdoor-data-time").innerHTML  = update_str;
-
-        document.getElementById("cell-indoor-temperature").innerHTML  = last_indoor_temperature.toFixed(1);
-        document.getElementById("cell-indoor-pm2p5").innerHTML  = last_indoor_pm2p5.toFixed(0);
-        document.getElementById("cell-indoor-pm10").innerHTML  = last_indoor_pm10.toFixed(0);
-        document.getElementById("cell-indoor-data-time").innerHTML  = update_str;
-
-        });
+      $(document).on('ready', function() {
+        getLastData(1, false);
+        getLastData(2000, true);
       });
 
     </script>
@@ -329,8 +329,8 @@
                   </div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-outdoor-temperature">-&nbsp-&nbsp-</span>
-                    <span class="mdl-typography--display-1">&deg</span>
+                    <span class="mdl-typography--display-1" id="cell-outdoor-temperature"><img src="./images/loading.gif" /></span>
+                    <span class="mdl-typography--display-1" id="cell-outdoor-temperature-unit"></span>
 
                   </div>
                 </div>
@@ -341,7 +341,8 @@
                   </div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-outdoor-pressure">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsphPa</span>
+                    <span class="mdl-typography--display-1" id="cell-outdoor-pressure"><img src="./images/loading.gif" /></span>
+                    <span class="mdl-typography--title" id="cell-outdoor-pressure-unit"></span>
                   </div>
                 </div>
 
@@ -351,7 +352,8 @@
                   </div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-outdoor-ambient-light-level">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsplx</span>
+                    <span class="mdl-typography--display-1" id="cell-outdoor-ambient-light-level"><img src="./images/loading.gif" /></span>
+                    <span class="mdl-typography--title" id="cell-outdoor-ambient-light-level-unit"></span>
                   </div>
                 </div>
 
@@ -361,17 +363,8 @@
                   </div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-outdoor-pm2p5">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
-                  </div>
-                </div>
-
-                <div class="mdl-grid">
-                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <i class="wi wi-dust weather-info-icon-big"></i><span class="mdl-typography--body-1"><i>PM10</i></span>
-                  </div>
-                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
-                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-outdoor-pm10">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
+                    <span class="mdl-typography--display-1" id="cell-outdoor-pm2p5"><img src="./images/loading.gif" /></span>
+                    <span class="mdl-typography--title" id="cell-outdoor-pm2p5-unit"></span>
                   </div>
                 </div>
 
@@ -394,8 +387,8 @@
                   </div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-indoor-temperature">-&nbsp-&nbsp-</span>
-                    <span class="mdl-typography--display-1">&deg</span>
+                    <span class="mdl-typography--display-1" id="cell-indoor-temperature"><img src="./images/loading.gif" /></span>
+                    <span class="mdl-typography--display-1" id="cell-indoor-temperature-unit"></span>
                   </div>
                 </div>
 
@@ -405,17 +398,8 @@
                   </div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
                   <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-indoor-pm2p5">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
-                  </div>
-                </div>
-
-                <div class="mdl-grid">
-                  <div class="mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <i class="wi wi-dust weather-info-icon-big"></i><span class="mdl-typography--body-1"><i>PM10</i></span>
-                  </div>
-                  <div class="mdl-cell mdl-cell--4-col mdl-cell--2-col-tablet mdl-cell--1-col-phone"></div>
-                  <div class="mdl-cell mdl-cell--4-col mdl-cell--1-col-tablet mdl-cell--1-col-phone">
-                    <span class="mdl-typography--display-1" id="cell-indoor-pm10">-&nbsp-&nbsp-</span><span class="mdl-typography--title">&nbsp%</span>
+                    <span class="mdl-typography--display-1" id="cell-indoor-pm2p5"><img src="./images/loading.gif" /></span>
+                    <span class="mdl-typography--title" id="cell-indoor-pm2p5-unit"></span>
                   </div>
                 </div>
 
@@ -430,13 +414,19 @@
 
             <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--4-col-tablet mdl-cell--12-col-desktop">
               <div class="mdl-card__supporting-text mdl-color-text--grey-600">
-                <div id="chart1_container"></div>
+                <div class="chart_container" id="chart1_container">
+                    <div class="mdl-typography--regular loading_data">Ładuję dane historyczne</div>
+                    <div class="loading_data"><img src="./images/loading.gif" /></div>
+                </div>
               </div>
             </div>
 
             <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--4-col-tablet mdl-cell--12-col-desktop">
               <div class="mdl-card__supporting-text mdl-color-text--grey-600">
-                <div id="chart2_container"></div>
+                <div class="chart_container" id="chart2_container">
+                    <div class="mdl-typography--regular loading_data">Ładuję dane historyczne</div>
+                    <div class="loading_data"><img src="./images/loading.gif" /></div>
+                </div>
               </div>
             </div>
 
